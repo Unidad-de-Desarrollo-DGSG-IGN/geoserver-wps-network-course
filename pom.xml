@@ -1,0 +1,103 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+    http://maven.apache.org/maven-v4_0_0.xsd ">
+   <modelVersion>4.0.0</modelVersion>
+
+   <groupId>org.geoserver</groupId>
+   <artifactId>network_course_wps</artifactId>
+   <packaging>jar</packaging>
+   <version>2.22-SNAPSHOT</version>
+   <name>network_course_wps</name>
+
+   <properties>
+     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     <gt.version>26.3</gt.version>  <!-- change to GeoTools version -->
+     <gs.version>2.20.3</gs.version>  <!-- change to GeoServer version -->
+   </properties>
+   <dependencies>
+     <dependency>
+       <groupId>org.geotools</groupId>
+       <artifactId>gt-process</artifactId>
+       <version>${gt.version}</version>
+     </dependency>
+     <dependency>
+       <groupId>org.geotools</groupId>
+       <artifactId>gt-opengis</artifactId>
+       <version>${gt.version}</version>
+     </dependency>
+     <dependency>
+       <groupId>org.geoserver.extension</groupId>
+       <artifactId>gs-wps-core</artifactId>
+       <version>${gs.version}</version>
+     </dependency>
+     <dependency>
+       <groupId>com.vividsolutions</groupId>
+       <artifactId>jts</artifactId>
+       <version>1.9</version>
+     </dependency>
+     <dependency>
+       <groupId>org.geoserver</groupId>
+       <artifactId>gs-main</artifactId>
+       <version>${gs.version}</version>
+       <classifier>tests</classifier>
+       <scope>test</scope>
+     </dependency>
+     <dependency>
+       <groupId>junit</groupId>
+       <artifactId>junit</artifactId>
+       <version>4.11</version>
+       <scope>test</scope>
+     </dependency>
+     <dependency>
+       <groupId>com.mockrunner</groupId>
+       <artifactId>mockrunner</artifactId>
+       <version>0.3.6</version>
+       <scope>test</scope>
+     </dependency>
+   </dependencies>
+
+   <build>
+     <plugins>
+       <plugin>
+         <artifactId>maven-compiler-plugin</artifactId>
+         <configuration>
+           <source>1.8</source>
+           <target>1.8</target>
+         </configuration>
+      </plugin>
+      <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <version>3.4.2</version>
+            <configuration>
+                <descriptorRefs>
+                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                </descriptorRefs>
+            </configuration>
+            <executions>
+                <execution>
+                    <id>assemble-all</id>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>single</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+   </build>
+
+    <repositories>
+  <repository>
+    <id>osgeo</id>
+    <name>OSGeo Release Repository</name>
+    <url>https://repo.osgeo.org/repository/release/</url>
+  </repository>
+  <repository>
+    <id>vividsolutions</id>
+    <url>https://52north.org/maven/repo/releases/com/vividsolutions/jts/1.9/</url>
+  </repository>
+</repositories>
+
+</project>
