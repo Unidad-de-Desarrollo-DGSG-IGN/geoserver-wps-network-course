@@ -5,6 +5,8 @@ package org.geoserver.network_course.wps;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
@@ -103,8 +105,13 @@ public class NetworkCourse implements GeoServerProcess {
                      for (int j = 0; j < linesToIntersect.getNumGeometries(); j++) {
                         LineString lineFound = (LineString) linesFound.getGeometryN(i);
                         LineString lineToIntersect = (LineString) linesToIntersect.getGeometryN(j);
-                        // if (lineFound.getStartPoint().equals(lineToIntersect.getEndPoint())) {
-                        if (lineFound.getStartPoint().isWithinDistance(lineToIntersect.getEndPoint(), 0.0001)) {
+                        if (
+                           lineFound.getStartPoint()
+                              .isWithinDistance(
+                                 lineToIntersect.getEndPoint(), 
+                                 0.0001
+                              )
+                           ) {
                            intersectingFC.add(feature);
                         }
                      }
