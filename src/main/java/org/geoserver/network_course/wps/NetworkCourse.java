@@ -22,7 +22,7 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.FeatureIterator;
-
+import org.locationtech.jts.algorithm.PointLocation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -38,9 +38,16 @@ import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.cql2.CQLException;
 import org.opengis.filter.Filter;
 
+import org.geotools.data.Parameter;
+
 @DescribeProcess(title="NetworkCourse", description="Compute the course into a network from a geometry")
 public class NetworkCourse implements GeoServerProcess {
    
+   public enum DirectionResult {
+      nascent_to_mouth,
+      mouth_to_nascent
+    }
+
    @DescribeResult(name="result", description="Subset of data from the feature collection that specify the course into the network")
    public FeatureCollection execute(
       @DescribeParameter(name="geom", description="Feature collection containing all base geometries of the network")
@@ -48,7 +55,9 @@ public class NetworkCourse implements GeoServerProcess {
       @DescribeParameter(name="intersectionGeometry", description="Geometry to intersect")
       Geometry intersectionGeometry,
       @DescribeParameter(name="tolerance", description="Tolerance for intersection calculation (in feature collection unit of measure)")
-      Float intersectionTolerance
+      Float intersectionTolerance,
+      @DescribeParameter(name="directionResult", description="Option to specify the direction of the result", min = 1, max = 1)
+      DirectionResult directionResult
    ) {
       return 
          this.getAllLinesTouchesOnNetwork(
@@ -57,7 +66,8 @@ public class NetworkCourse implements GeoServerProcess {
                dataLayer,
                intersectionGeometry,
                intersectionTolerance
-            )
+            ),
+            directionResult
          );
    }
 
@@ -86,7 +96,8 @@ public class NetworkCourse implements GeoServerProcess {
 
    private FeatureCollection getAllLinesTouchesOnNetwork(
       FeatureCollection geomNetwork,
-      FeatureCollection intersectingFeatures
+      FeatureCollection intersectingFeatures,
+      DirectionResult directionResult
    ) {
       int linesPreviouslyFound = intersectingFeatures.size();
       DefaultFeatureCollection intersectingFC = new DefaultFeatureCollection();
@@ -105,10 +116,16 @@ public class NetworkCourse implements GeoServerProcess {
                      for (int j = 0; j < linesToIntersect.getNumGeometries(); j++) {
                         LineString lineFound = (LineString) linesFound.getGeometryN(i);
                         LineString lineToIntersect = (LineString) linesToIntersect.getGeometryN(j);
+                        Point pointFound = lineFound.getStartPoint();
+                        Point pointToIntersect = lineToIntersect.getEndPoint();
+                        if (directionResult == DirectionResult.mouth_to_nascent) {
+                           pointFound = lineFound.getEndPoint();
+                           pointToIntersect = lineToIntersect.getStartPoint();
+                        }
                         if (
-                           lineFound.getStartPoint()
+                           pointFound
                               .isWithinDistance(
-                                 lineToIntersect.getEndPoint(), 
+                                 pointToIntersect, 
                                  0.0001
                               )
                            ) {
@@ -129,7 +146,8 @@ public class NetworkCourse implements GeoServerProcess {
 
       return this.getAllLinesTouchesOnNetwork(
          geomNetwork,
-         intersectingFC
+         intersectingFC,
+         directionResult
       );
    }
 
