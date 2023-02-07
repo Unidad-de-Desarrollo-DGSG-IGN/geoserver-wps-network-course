@@ -23,22 +23,27 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.FeatureIterator;
+import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.locationtech.jts.algorithm.PointLocation;
 import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.util.GeometryEditor;
+import org.locationtech.jts.operation.distance.DistanceOp;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.MultiLineString;
-
+import org.geotools.geometry.jts.GeometryClipper;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.data.DataUtilities;
 
 import org.geotools.filter.text.cql2.CQL;
 import org.geotools.filter.text.cql2.CQLException;
 import org.opengis.filter.Filter;
+
+import net.opengis.wfs.GetFeatureType;
 
 import org.geotools.data.Parameter;
 
@@ -87,6 +92,20 @@ public class NetworkCourse implements GeoServerProcess {
       while (intersectedFeaturesIterator.hasNext()) {
             SimpleFeature feature = intersectedFeaturesIterator.next();
             intersectingFeatures.add(feature);
+
+            /** TODO: cortar la linea a partir del punto de intersección */
+            // MultiLineString originalLine = (MultiLineString) feature.getDefaultGeometry();
+            // Coordinate[] pts = DistanceOp.nearestPoints(originalLine, bufferToIntersect);
+            // double totalLenght = originalLine.getLength();
+            // GeometryFactory factory = new GeometryFactory();
+            // double distToPoint = originalLine.distance(factory.createPoint(new Coordinate(pts[0].x, pts[0].y)));
+            // double lenght1 = distToPoint;
+            // double lenght2 = totalLenght - distToPoint;
+            // Geometry line1 = originalLine.getGeometryN((int) Math.floor(lenght1 / totalLenght * (originalLine.getNumGeometries() - 1)));
+            // Geometry line2 = originalLine.getGeometryN((int) Math.ceil(lenght2 / totalLenght * (originalLine.getNumGeometries() - 1)));
+            // SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(feature.getType());
+            // featureBuilder.add(line1);
+            // intersectingFeatures.add(featureBuilder.buildFeature(null));
       }
 
       return intersectingFeatures;
