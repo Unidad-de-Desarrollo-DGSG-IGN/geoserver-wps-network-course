@@ -3,6 +3,7 @@
 package org.geoserver.network_course.wps;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Iterator;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.FeatureIterator;
 import org.locationtech.jts.algorithm.PointLocation;
+import org.locationtech.jts.awt.PointTransformation;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -80,67 +82,37 @@ public class NetworkCourse implements GeoServerProcess {
       DefaultFeatureCollection intersectingFeatures = new DefaultFeatureCollection();
       Geometry bufferToIntersect = pointToIntersect.buffer(bufferSize);
 
-      try {
-         Filter filter = CQL.toFilter("INTERSECTS(the_geom, " + bufferToIntersect.toText() + ")");
-         FeatureIterator<SimpleFeature> iter = geomNetwork.subCollection(filter).features();
-         while (iter.hasNext()) {
-               SimpleFeature feature = iter.next();
-               intersectingFeatures.add(feature);
-         }
-      } catch (CQLException e) {
-         e.printStackTrace();
+      FeatureIterator<SimpleFeature> intersectedFeaturesIterator =
+         this.getIntersectedSubcollection(geomNetwork, bufferToIntersect);
+      while (intersectedFeaturesIterator.hasNext()) {
+            SimpleFeature feature = intersectedFeaturesIterator.next();
+            intersectingFeatures.add(feature);
       }
-      
+
       return intersectingFeatures;
    }
 
    private FeatureCollection getAllLinesTouchesOnNetwork(
       FeatureCollection geomNetwork,
-      FeatureCollection intersectingFeatures,
+      FeatureCollection intersectedFeatures,
       DirectionResult directionResult
    ) {
-      int linesPreviouslyFound = intersectingFeatures.size();
-      DefaultFeatureCollection intersectingFC = new DefaultFeatureCollection();
-      intersectingFC.addAll(intersectingFeatures);
-      try (FeatureIterator<SimpleFeature> iterator = intersectingFeatures.features()) {
-         while (iterator.hasNext()) {
-            SimpleFeature actualFeature = iterator.next();
-            MultiLineString linesToIntersect = (MultiLineString) actualFeature.getDefaultGeometry();
-            try {
-               Filter filter = CQL.toFilter("INTERSECTS(the_geom, " + linesToIntersect.toText() + ")");
-               FeatureIterator<SimpleFeature> iter = geomNetwork.subCollection(filter).features();
-               while (iter.hasNext()) {
-                  SimpleFeature feature = iter.next();
-                  MultiLineString linesFound = (MultiLineString) feature.getDefaultGeometry();
-                  for (int i = 0; i < linesFound.getNumGeometries(); i++) {
-                     for (int j = 0; j < linesToIntersect.getNumGeometries(); j++) {
-                        LineString lineFound = (LineString) linesFound.getGeometryN(i);
-                        LineString lineToIntersect = (LineString) linesToIntersect.getGeometryN(j);
-                        Point pointFound = lineFound.getStartPoint();
-                        Point pointToIntersect = lineToIntersect.getEndPoint();
-                        if (directionResult == DirectionResult.mouth_to_nascent) {
-                           pointFound = lineFound.getEndPoint();
-                           pointToIntersect = lineToIntersect.getStartPoint();
-                        }
-                        if (
-                           pointFound
-                              .isWithinDistance(
-                                 pointToIntersect, 
-                                 0.0001
-                              )
-                           ) {
-                           intersectingFC.add(feature);
-                        }
-                     }
-                  }                                    
-               }
-            } catch (CQLException e) {
-               e.printStackTrace();
-            }
-         }
-      }
+      int linesPreviouslyFound = intersectedFeatures.size();
 
-      if (linesPreviouslyFound == intersectingFC.size() || intersectingFC.size() >= geomNetwork.size()) {
+      DefaultFeatureCollection intersectingFC = new DefaultFeatureCollection();
+      intersectingFC.addAll(intersectedFeatures);
+
+      intersectingFC.addAll(
+         this.getNewFeaturesThatIntersect(
+            geomNetwork,
+            intersectedFeatures,
+            directionResult
+         )
+      );
+
+      if (linesPreviouslyFound == intersectingFC.size()
+          || intersectingFC.size() >= geomNetwork.size()
+      ) {
          return intersectingFC;
       }
 
@@ -151,7 +123,6 @@ public class NetworkCourse implements GeoServerProcess {
       );
    }
 
-   
    private Geometry convert2D(Geometry g3D){
       // copy geometry
       Geometry g2D = (Geometry) g3D.clone();
@@ -161,4 +132,110 @@ public class NetworkCourse implements GeoServerProcess {
       }
       return g2D;
    }
+
+   private FeatureCollection getNewFeaturesThatIntersect(
+      FeatureCollection geomNetwork,
+      FeatureCollection baseFeaturesToIntersect,
+      DirectionResult directionResult
+   ) {
+      DefaultFeatureCollection intersectingFC = new DefaultFeatureCollection();
+      try (FeatureIterator<SimpleFeature> baseFeaturesIterator = baseFeaturesToIntersect.features()) {
+         while (baseFeaturesIterator.hasNext()) {
+            SimpleFeature actualIntersectingFeature = baseFeaturesIterator.next();
+            intersectingFC.addAll(
+               this.getNewFeaturesThatIntersectWithABaseFeature(
+                  geomNetwork,
+                  actualIntersectingFeature,
+                  directionResult
+               )
+            );
+         }
+      }
+
+      return intersectingFC;
+   }
+
+   private FeatureCollection getNewFeaturesThatIntersectWithABaseFeature(
+      FeatureCollection geomNetwork,
+      SimpleFeature baseFeatureToIntersect,
+      DirectionResult directionResult
+   ) {
+      DefaultFeatureCollection intersectingFC = new DefaultFeatureCollection();
+      MultiLineString linesToIntersect = (MultiLineString) baseFeatureToIntersect.getDefaultGeometry();
+      FeatureIterator<SimpleFeature> intersectedFeaturesIterator =
+         this.getIntersectedSubcollection(
+            geomNetwork,
+            linesToIntersect
+         );
+      while (intersectedFeaturesIterator.hasNext()) {
+         SimpleFeature intersectedFeature = intersectedFeaturesIterator.next();
+         MultiLineString linesFound = (MultiLineString) intersectedFeature.getDefaultGeometry();
+         for (int i = 0; i < linesFound.getNumGeometries(); i++) {
+            for (int j = 0; j < linesToIntersect.getNumGeometries(); j++) {
+               if (this.existsPointIntersection(
+                  (LineString) linesFound.getGeometryN(i),
+                  (LineString) linesToIntersect.getGeometryN(j),
+                  directionResult
+               )) {
+                  intersectingFC.add(intersectedFeature);
+               }
+            }
+         }                                    
+      }
+
+      return intersectingFC;
+   }
+
+   private FeatureIterator<SimpleFeature> getIntersectedSubcollection(
+      FeatureCollection geomNetwork,
+      Geometry geometryToIntersect
+   ) {
+      try {
+         Filter filter = CQL.toFilter("INTERSECTS(the_geom, " + geometryToIntersect.toText() + ")");
+         FeatureIterator<SimpleFeature> intersectedFeaturesIterator = geomNetwork.subCollection(filter).features();
+         return intersectedFeaturesIterator;
+      } catch (CQLException e) {
+         e.printStackTrace();
+      }
+
+      return null;
+   }
+
+   private boolean existsPointIntersection(
+      LineString lineFound,
+      LineString lineToIntersect,
+      DirectionResult directionResult
+   ) {
+
+      List<Point> points = this.getPointsToIntersect(
+         lineFound,
+         lineToIntersect,
+         directionResult
+      );
+
+      return points.get(0)
+         .isWithinDistance(
+            points.get(1), 
+            0.0001
+         );
+   }
+
+   private List<Point> getPointsToIntersect(
+      LineString lineFound,
+      LineString lineToIntersect,
+      DirectionResult directionResult
+   ) {
+      Point pointFound = lineFound.getStartPoint();
+      Point pointToIntersect = lineToIntersect.getEndPoint();
+      if (directionResult == DirectionResult.mouth_to_nascent) {
+         pointFound = lineFound.getEndPoint();
+         pointToIntersect = lineToIntersect.getStartPoint();
+      }
+
+      List<Point> points = new ArrayList<Point>();
+      points.add(pointFound);
+      points.add(pointToIntersect);
+      return points;
+   }
+
 }
