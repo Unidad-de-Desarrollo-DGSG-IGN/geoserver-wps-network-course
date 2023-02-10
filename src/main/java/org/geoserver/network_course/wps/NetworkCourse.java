@@ -2,6 +2,9 @@
 //https://docs.geotools.org/latest/userguide/library/jts/geometry.html
 package org.geoserver.network_course.wps;
 
+import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +49,7 @@ import org.opengis.filter.Filter;
 import net.opengis.wfs.GetFeatureType;
 
 import org.geotools.data.Parameter;
+import org.geotools.data.collection.SpatialIndexFeatureCollection;
 
 @DescribeProcess(title="NetworkCourse", description="Compute the course into a network from a geometry")
 public class NetworkCourse implements GeoServerProcess {
@@ -66,11 +70,19 @@ public class NetworkCourse implements GeoServerProcess {
       @DescribeParameter(name="directionResult", description="Option to specify the direction of the result", min = 1, max = 1)
       DirectionResult directionResult
    ) {
+
+      SpatialIndexFeatureCollection geomNetwork = null;
+      try {
+         geomNetwork = new SpatialIndexFeatureCollection((SimpleFeatureCollection) dataLayer);
+      } catch (IOException e) {
+         e.printStackTrace();
+      }
+
       return 
          this.getAllLinesTouchesOnNetwork(
-            dataLayer,
+            geomNetwork,
             this.getIntersectedGeomsByAPoint(
-               dataLayer,
+               geomNetwork,
                intersectionGeometry,
                intersectionTolerance
             ),
@@ -80,10 +92,10 @@ public class NetworkCourse implements GeoServerProcess {
 
    /** Return the intersected Geometries into a Network by a single Point */
    private FeatureCollection getIntersectedGeomsByAPoint(
-      FeatureCollection geomNetwork,
+      SpatialIndexFeatureCollection geomNetwork,
       Geometry pointToIntersect,
       Float bufferSize
-   ) {
+   ) {      
       DefaultFeatureCollection intersectingFeatures = new DefaultFeatureCollection();
       Geometry bufferToIntersect = pointToIntersect.buffer(bufferSize);
 
@@ -112,7 +124,7 @@ public class NetworkCourse implements GeoServerProcess {
    }
 
    private FeatureCollection getAllLinesTouchesOnNetwork(
-      FeatureCollection geomNetwork,
+      SpatialIndexFeatureCollection geomNetwork,
       FeatureCollection intersectedFeatures,
       DirectionResult directionResult
    ) {
@@ -153,7 +165,7 @@ public class NetworkCourse implements GeoServerProcess {
    }
 
    private FeatureCollection getNewFeaturesThatIntersect(
-      FeatureCollection geomNetwork,
+      SpatialIndexFeatureCollection geomNetwork,
       FeatureCollection baseFeaturesToIntersect,
       DirectionResult directionResult
    ) {
@@ -175,7 +187,7 @@ public class NetworkCourse implements GeoServerProcess {
    }
 
    private FeatureCollection getNewFeaturesThatIntersectWithABaseFeature(
-      FeatureCollection geomNetwork,
+      SpatialIndexFeatureCollection geomNetwork,
       SimpleFeature baseFeatureToIntersect,
       DirectionResult directionResult
    ) {
@@ -206,7 +218,7 @@ public class NetworkCourse implements GeoServerProcess {
    }
 
    private FeatureIterator<SimpleFeature> getIntersectedSubcollection(
-      FeatureCollection geomNetwork,
+      SpatialIndexFeatureCollection geomNetwork,
       Geometry geometryToIntersect
    ) {
       try {
