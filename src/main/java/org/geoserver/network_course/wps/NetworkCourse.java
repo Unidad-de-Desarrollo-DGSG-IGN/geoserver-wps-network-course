@@ -24,6 +24,7 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.feature.type.AttributeDescriptor;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
@@ -53,11 +54,6 @@ import org.geotools.data.collection.SpatialIndexFeatureCollection;
 
 @DescribeProcess(title="NetworkCourse", description="Compute the course into a network from a geometry")
 public class NetworkCourse implements GeoServerProcess {
-   
-   public enum DirectionResult {
-      nascent_to_mouth,
-      mouth_to_nascent
-    }
 
    @DescribeResult(name="result", description="Subset of data from the feature collection that specify the course into the network")
    public FeatureCollection execute(
@@ -66,7 +62,7 @@ public class NetworkCourse implements GeoServerProcess {
       @DescribeParameter(name="intersectionGeometry", description="Geometry to intersect")
       Geometry intersectionGeometry,
       @DescribeParameter(name="tolerance", description="Tolerance for intersection calculation (in feature collection unit of measure)")
-      Float intersectionTolerance,
+      Double intersectionTolerance,
       @DescribeParameter(name="directionResult", description="Option to specify the direction of the result", min = 1, max = 1)
       DirectionResult directionResult
    ) {
@@ -91,10 +87,10 @@ public class NetworkCourse implements GeoServerProcess {
    }
 
    /** Return the intersected Geometries into a Network by a single Point */
-   private FeatureCollection getIntersectedGeomsByAPoint(
+   protected FeatureCollection getIntersectedGeomsByAPoint(
       SpatialIndexFeatureCollection geomNetwork,
       Geometry pointToIntersect,
-      Float bufferSize
+      Double bufferSize
    ) {      
       DefaultFeatureCollection intersectingFeatures = new DefaultFeatureCollection();
       Geometry bufferToIntersect = pointToIntersect.buffer(bufferSize);
@@ -222,7 +218,13 @@ public class NetworkCourse implements GeoServerProcess {
       Geometry geometryToIntersect
    ) {
       try {
-         Filter filter = CQL.toFilter("INTERSECTS(the_geom, " + geometryToIntersect.toText() + ")");
+
+         String geometryFieldName = 
+            geomNetwork.getSchema()
+               .getGeometryDescriptor()
+               .getLocalName();
+
+         Filter filter = CQL.toFilter("INTERSECTS(" + geometryFieldName + ", " + geometryToIntersect.toText() + ")");
          FeatureIterator<SimpleFeature> intersectedFeaturesIterator = geomNetwork.subCollection(filter).features();
          return intersectedFeaturesIterator;
       } catch (CQLException e) {
