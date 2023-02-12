@@ -1,4 +1,4 @@
-# geoserver-wps-network-course
+# Geoserver WPS Network Course
 Compute the course into a network from a geometry.
 
 This WPS process was tested on GeoServer 2.22
@@ -39,11 +39,10 @@ To do this, the following steps are executed:
 
 
 ## Geoprocess parameters
-geom:  Feature collection containing all base geometries of the network. In the example above, this is the lines network drawing in blue color.
+- geom:  Feature collection containing all base geometries of the network. In the example above, this is the lines network drawing in blue color.
 
-intersectionGeometry: Geometry used by the geoprocess to find the starting point. This geometry is used to make the first intersection with the network indicated in the parameter geom.
+- intersectionGeometry: Geometry used by the geoprocess to find the starting point. This geometry is used to make the first intersection with the network indicated in the parameter geom.
 
-tolerance: Tolerance value used for the intersection between the intersectionGeometry and geom parameters. Must be entered in the network unit of measure.
+- tolerance: Tolerance value used for the intersection between the intersectionGeometry and geom parameters. Must be entered in the network unit of measure.
 
-directionResult: indicates the direction in which the network will be traversed and, consequently, will be the address of the result. By default the geoprocess is executed with direction nacent_to_mouth.
-
+- directionResult: indicates the direction in which the network will be traversed and, consequently, will be the address of the result. By default the geoprocess is executed with direction nacent_to_mouth.
